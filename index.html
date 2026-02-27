@@ -1070,8 +1070,22 @@ function exportData(){
 }
 function importData(){
   try{
-    const raw=document.getElementById("import-ta").value.trim();
-    const p=JSON.parse(raw);
+    let text = document.getElementById("import-ta").value.trim();
+    // Strip uploads block (can be huge base64 data)
+    const uKey = '"uploads"';
+    const uStart = text.indexOf(uKey);
+    if(uStart !== -1) {
+      const braceStart = text.indexOf('{', uStart + uKey.length);
+      if(braceStart !== -1) {
+        let depth = 0, braceEnd = braceStart;
+        for(let i = braceStart; i < text.length; i++){
+          if(text[i]==='{') depth++;
+          else if(text[i]==='}'){depth--; if(depth===0){braceEnd=i;break;}}
+        }
+        text = text.slice(0, braceStart) + '{}' + text.slice(braceEnd + 1);
+      }
+    }
+    const p = JSON.parse(text);
     applyBackup(p);
   }catch(e){ toast("❌ Invalid JSON — check format", true) }
 }
@@ -1128,23 +1142,8 @@ function applyBackup(p){
   if(p.customCards) extra = p.customCards;
   if(p.edits)   saveEdits(p.edits);
   if(p.hidden)  saveHidden(p.hidden);
+  // uploads intentionally skipped — photos are now baked into the deployed site
   saveOwns(); saveExtra();
-
-  // Handle uploads separately — they can be large and may fail on mobile
-  if(p.uploads && Object.keys(p.uploads).length > 0) {
-    try {
-      saveUploads(p.uploads);
-    } catch(storageErr) {
-      // localStorage quota exceeded — save what we can, skip uploads
-      console.warn('Could not save uploaded images to localStorage (quota exceeded):', storageErr);
-      try { saveUploads({}); } catch(e2) {}
-      buildLangChips(); renderCards(); renderDash();
-      toast('✅ Backup restored! (Note: uploaded photos skipped — storage full. Use image URLs instead)', false);
-      closeGear();
-      return;
-    }
-  }
-
   buildLangChips(); renderCards(); renderDash();
   toast('✅ Backup restored successfully!'); closeGear();
 }
