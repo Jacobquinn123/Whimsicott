@@ -1060,15 +1060,21 @@ function importFromFile(){
   input.onchange = e => {
     const file = e.target.files[0];
     if(!file) return;
+    // Show loading toast for large files
+    toast('📂 Loading backup…');
     const reader = new FileReader();
     reader.onload = ev => {
-      try {
-        const p = JSON.parse(ev.target.result);
-        applyBackup(p);
-      } catch(err) {
-        toast('❌ Could not read file — is it a valid backup?', true);
-      }
+      // Use setTimeout to yield to the UI thread before parsing large JSON
+      setTimeout(() => {
+        try {
+          const p = JSON.parse(ev.target.result);
+          applyBackup(p);
+        } catch(err) {
+          toast('❌ Could not read file — is it a valid backup?', true);
+        }
+      }, 50);
     };
+    reader.onerror = () => toast('❌ Could not read file — try again', true);
     reader.readAsText(file);
   };
   input.click();
@@ -1078,9 +1084,24 @@ function applyBackup(p){
   owns = p.overrides || p;
   if(p.customCards) extra = p.customCards;
   if(p.edits)   saveEdits(p.edits);
-  if(p.uploads) saveUploads(p.uploads);
   if(p.hidden)  saveHidden(p.hidden);
   saveOwns(); saveExtra();
+
+  // Handle uploads separately — they can be large and may fail on mobile
+  if(p.uploads && Object.keys(p.uploads).length > 0) {
+    try {
+      saveUploads(p.uploads);
+    } catch(storageErr) {
+      // localStorage quota exceeded — save what we can, skip uploads
+      console.warn('Could not save uploaded images to localStorage (quota exceeded):', storageErr);
+      try { saveUploads({}); } catch(e2) {}
+      buildLangChips(); renderCards(); renderDash();
+      toast('✅ Backup restored! (Note: uploaded photos skipped — storage full. Use image URLs instead)', false);
+      closeGear();
+      return;
+    }
+  }
+
   buildLangChips(); renderCards(); renderDash();
   toast('✅ Backup restored successfully!'); closeGear();
 }
