@@ -561,11 +561,11 @@ let prevLangCompletions={};
 // STORAGE
 // ════════════════════════════════════
 function loadStorage(){
-  try{const o=localStorage.getItem("whim_owns");if(o)owns=JSON.parse(o);
-    const e=localStorage.getItem("whim_extra");if(e)extra=JSON.parse(e);}catch(err){}
+  try{ const o=store.get("whim_owns","null"); if(o&&o!=="null") owns=JSON.parse(o); }catch(err){}
+  try{ const e=store.get("whim_extra","null"); if(e&&e!=="null") extra=JSON.parse(e); }catch(err){}
 }
-function saveOwns(){localStorage.setItem("whim_owns",JSON.stringify(owns))}
-function saveExtra(){localStorage.setItem("whim_extra",JSON.stringify(extra))}
+function saveOwns(){ store.set("whim_owns", JSON.stringify(owns)); }
+function saveExtra(){ store.set("whim_extra", JSON.stringify(extra)); }
 // allCards() defined below in storage section
 function owned(c){return c.id in owns?owns[c.id]:c.owned}
 
@@ -1323,14 +1323,21 @@ function submitEditCard() {
 // ════════════════════════════════════
 // BASE CARD EDITS STORAGE
 // ════════════════════════════════════
-function getEdits() {
-  try { return JSON.parse(localStorage.getItem('whim_edits') || '{}'); } catch(e) { return {}; }
-}
-function saveEdits(e) { localStorage.setItem('whim_edits', JSON.stringify(e)); }
-function getHidden() {
-  try { return JSON.parse(localStorage.getItem('whim_hidden') || '{}'); } catch(e) { return {}; }
-}
-function saveHidden(h) { localStorage.setItem('whim_hidden', JSON.stringify(h)); }
+// Safe storage wrapper — handles browsers that block localStorage (Safari, GitHub Pages etc)
+const store = {
+  get(key, fallback='{}') {
+    try { return localStorage.getItem(key) || fallback; }
+    catch(e) { return fallback; }
+  },
+  set(key, val) {
+    try { localStorage.setItem(key, val); return true; }
+    catch(e) { console.warn('Storage unavailable:', e); return false; }
+  }
+};
+function getEdits()  { try { return JSON.parse(store.get('whim_edits','{}'));   } catch(e){ return {}; } }
+function saveEdits(e){ store.set('whim_edits', JSON.stringify(e)); }
+function getHidden() { try { return JSON.parse(store.get('whim_hidden','{}'));  } catch(e){ return {}; } }
+function saveHidden(h){ store.set('whim_hidden', JSON.stringify(h)); }
 
 // Apply edits overlay to allCards result
 function allCards() {
@@ -1343,10 +1350,8 @@ function allCards() {
 
 // edits and uploads loaded on-demand via getEdits()/getUploads()
 
-function getUploads() {
-  try { return JSON.parse(localStorage.getItem('whim_uploads') || '{}'); } catch(e) { return {}; }
-}
-function saveUploads(u) { localStorage.setItem('whim_uploads', JSON.stringify(u)); }
+function getUploads()  { try { return JSON.parse(store.get('whim_uploads','{}')); } catch(e){ return {}; } }
+function saveUploads(u){ store.set('whim_uploads', JSON.stringify(u)); }
 function getUploadedImage(cardId) { return getUploads()[cardId] || null; }
 
 // ════════════════════════════════════
