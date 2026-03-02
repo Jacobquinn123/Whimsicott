@@ -554,37 +554,45 @@ const FLAGS={English:"🇬🇧",Japanese:"🇯🇵",Italian:"🇮🇹",Spanish:"
 // ════════════════════════════════════
 // STATE
 // ════════════════════════════════════
+let latestDate = "2026-03-02T07:00:00.000Z";
 let owns={},extra=[],huntMode=false,curView="grid",statusF=[],langF=[],lastMark=null,undoTmr=null,gearOpen=false,formOwnedVal=false;
 let prevLangCompletions={};
 
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-function loadStorage(){
+async function loadStorage() {
   try {
-
-    lsEmpty = false;
-    
     const o = localStorage.getItem("whim_owns");
-    if (o) {
-        owns = JSON.parse(o);
+    const e = localStorage.getItem("whim_extra");
+    const lsDate = localStorage.getItem("whim_date");
+
+    lsUpdate = false;
+    
+    if (o && e && lsDate) {
+      owns = JSON.parse(o);
+      extra = JSON.parse(e);
+      if (lsDate < latestDate){
+        lsUpdate = true;
+      }
     }
-    else{
-      lsEmpty = true;
+    else {
+      lsUpdate = true;
+    }
+    if (lsUpdate){
+      fetch('whimsicott-backup.json')
+      .then(response => response.text())
+      .then(text => {
+        document.getElementById('import-ta').value = text;
+        importData();
+      });
     }
 
-    const e = localStorage.getItem("whim_extra");
-    if (e) {
-        extra = JSON.parse(e);
-    }
-    else{
-      lsEmpty = true; 
-    }
-    if (lsEmpty){
-      alert("Local Storage is not up to date. Please re-import your JSON file.");
-    }
-  } catch (err) {}
+  } catch (err) {
+    console.error("Error fetching JSON:", err);
+  }
 }
+
 function saveOwns(){localStorage.setItem("whim_owns",JSON.stringify(owns))}
 function saveExtra(){localStorage.setItem("whim_extra",JSON.stringify(extra))}
 // allCards() defined below in storage section
@@ -1186,6 +1194,7 @@ function importFromFile(){
 }
 
 function applyBackup(p){
+  localStorage.setItem("whim_date",p.date);
   owns = p.overrides || p;
   if(p.customCards) extra = p.customCards;
   if(p.edits)   saveEdits(p.edits);
